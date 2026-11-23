@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+/* Jetons issus de la charte graphique H.O.K Boutique */
+@theme {
+  --color-brun: #683c11;
+  --color-brun-hover: #573110;
+  --color-encre: #2a1a0c;
+  --color-soft: #4a3726;
+  --color-muted: #6b5a4a;
+  --color-bordeaux: #49010c;
+  --color-beige: #d8c3a9; /* provisoire : nuance à confirmer par la marque */
+  --color-beige-clair: #e6d7c3;
+  --color-sable: #f3ece2;
+  --color-ecru: #f7f2ea;
+  --color-creme: #fbf8f4;
+  --color-ok: #2f5d3a;
+  --color-danger: #8e1b1b;
+
+  --font-serif: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
+  --font-sans: var(--font-dm), "DM Sans", system-ui, sans-serif;
+
+  --ease-apple: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --radius-4xl: 2rem;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-white text-encre font-sans;
+  }
+  .tabular-nums {
+    white-space: nowrap;
+  }
+  ::selection {
+    background: rgb(104 60 17 / 0.18);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brun);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+  button,
+  [role="button"] {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
+
+@layer components {
+  /* Verre dépoli façon Apple */
+  .glass {
+    background: rgb(255 255 255 / 0.72);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+  }
+  .glass-strong {
+    background: rgb(255 255 255 / 0.55);
+    backdrop-filter: saturate(160%) blur(24px);
+    -webkit-backdrop-filter: saturate(160%) blur(24px);
+    border: 1px solid rgb(255 255 255 / 0.65);
+  }
+  .glass-brun {
+    background: rgb(104 60 17 / 0.88);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.18em] text-brun;
+  }
+  .title-serif {
+    @apply font-serif font-medium tracking-[-0.01em] text-encre;
+  }
+  .lift {
+    transition:
+      transform 0.45s var(--ease-apple),
+      box-shadow 0.45s var(--ease-apple);
+  }
+  .lift:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 24px 48px -24px rgb(72 40 10 / 0.35);
+  }
+  .press {
+    transition:
+      transform 0.2s ease,
+      background-color 0.25s ease,
+      color 0.25s ease,
+      opacity 0.25s ease,
+      box-shadow 0.25s ease;
+  }
+  .press:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  .field {
+    @apply h-12 w-full rounded-[14px] border border-brun/20 bg-white px-4 text-[15px] text-encre placeholder:text-muted/70 transition focus:border-brun focus:ring-4 focus:ring-brun/10 focus:outline-none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+}
