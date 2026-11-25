@@ -6,6 +6,7 @@ Front complet : boutique client + administration. Le backend sera branché ensui
 ## Démarrer
 
 ```bash
+cp .env.example .env.local   # clé secrète à ajouter pour gérer l'équipe (voir supabase/README.md)
 npm install
 npm run dev        # http://localhost:3000
 npm run build      # build de production

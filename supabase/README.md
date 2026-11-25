@@ -9,7 +9,7 @@ Projet Supabase : `phruhfpjudfnliopxlnp` (compte de la boutique).
 2. Coller tout le contenu de `installation_complete.sql`, puis **Run**.
 3. Résultat attendu : « Success. No rows returned ».
 
-Ce fichier contient, dans l'ordre : le schéma, les fonctions métier, la sécurité (RLS et stockage) et les données de départ. Si une erreur apparaît, rien n'est enregistré : corriger, puis relancer.
+Ce fichier contient, dans l'ordre : le schéma, les fonctions métier, la sécurité (RLS et stockage), les données de départ et les droits d'accès aux tables. Si une erreur apparaît, rien n'est enregistré : corriger, puis relancer.
 
 ### 2. Activer l'annulation automatique des impayés (24 h)
 1. **Database › Extensions** : activer `pg_cron`.
@@ -47,12 +47,13 @@ select id, quantity, unit from public.materials order by id;                -- 1
 select * from public.staff;                                                  -- l'équipe
 ```
 
-### 5. Récupérer les clés pour le site
-**Project Settings › API** :
-- `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
-- clé `anon` / `publishable` → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+### 5. Brancher le site
+Copier `.env.example` en `.env.local` à la racine du projet. L'URL et la clé publique y sont déjà.
 
-La clé `service_role` et le mot de passe de la base ne se partagent jamais : ni dans le code, ni dans une discussion.
+Pour pouvoir **ajouter des membres depuis l'admin** (page Équipe), ajouter aussi la clé secrète :
+**Project Settings › API Keys › Secret keys** (ou `service_role`) → `SUPABASE_SERVICE_ROLE_KEY=` dans `.env.local`, puis plus tard dans les variables d'environnement Vercel.
+
+Cette clé secrète et le mot de passe de la base ne se partagent jamais : ni dans le code, ni dans Git, ni dans une discussion.
 
 ## Ce que fait la base
 
