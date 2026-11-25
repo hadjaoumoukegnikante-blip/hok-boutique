@@ -4,7 +4,7 @@ import { ShoppingBag } from "lucide-react";
 import { CartLineItem } from "@/components/shop/CartLineItem";
 import { PromoField, TotalsBlock } from "@/components/shop/Summary";
 import { ButtonLink, Card, Container, ChipGroup, useMounted } from "@/components/ui";
-import { delivery } from "@/lib/config";
+import { useShopData } from "@/components/shop/ShopData";
 import { useCartTotals } from "@/lib/useCartTotals";
 import { useCart } from "@/store/cart";
 
@@ -12,6 +12,7 @@ export default function CartPage() {
   const mounted = useMounted();
   const totals = useCartTotals();
   const { commune, setCommune } = useCart();
+  const { zones } = useShopData();
 
   if (!mounted) return <Container className="min-h-[60vh] pt-16" />;
 
@@ -45,7 +46,7 @@ export default function CartPage() {
           <Card className="bg-ecru shadow-none">
             <p className="font-semibold">Livraison à Conakry</p>
             <p className="mb-3 mt-0.5 text-[13px] text-muted">Choisissez votre commune pour estimer les frais.</p>
-            <ChipGroup label="Commune" value={commune || undefined} onChange={setCommune} options={delivery.zones.map((z) => ({ value: z.commune, label: z.commune }))} />
+            <ChipGroup label="Commune" value={commune || undefined} onChange={setCommune} options={zones.map((z) => ({ value: z.commune, label: z.commune }))} />
           </Card>
           <Card>
             <PromoField totals={totals} />

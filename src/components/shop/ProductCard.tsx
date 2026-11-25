@@ -4,14 +4,14 @@ import { ArrowRight, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ProductVisual } from "@/components/ui";
-import { getUniversSync } from "@/lib/api";
+import { useUniversOf } from "./ShopData";
 import { isSoldOut } from "@/lib/availability";
 import { cn, gnf, productStatusMeta, toneClass } from "@/lib/format";
 import type { Product } from "@/lib/types";
 import { useCart, useUi } from "@/store/cart";
 
 export function ProductCard({ product, priority }: { product: Product; priority?: boolean }) {
-  const u = getUniversSync(product.univers);
+  const u = useUniversOf()(product.univers);
   const meta = productStatusMeta[product.status];
   const add = useCart((s) => s.add);
   const notify = useUi((s) => s.notify);

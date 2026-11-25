@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ProductVisual } from "@/components/ui";
-import { getUniversSync, searchProducts } from "@/lib/api";
+import { useSearch, useUniversOf } from "./ShopData";
 import { gnf } from "@/lib/format";
 import { useUi } from "@/store/cart";
 
@@ -17,7 +17,9 @@ export function SearchOverlay() {
   const [q, setQ] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const results = searchProducts(q).slice(0, 6);
+  const search = useSearch();
+  const universOf = useUniversOf();
+  const results = search(q).slice(0, 6);
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -97,7 +99,7 @@ export function SearchOverlay() {
                       <ProductVisual univers={p.univers} src={p.images[0]} alt={p.name} label="" className="size-14 shrink-0 rounded-xl" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{p.name}</p>
-                        <p className="text-sm text-muted">{getUniversSync(p.univers).brand}</p>
+                        <p className="text-sm text-muted">{universOf(p.univers).brand}</p>
                       </div>
                       <p className="text-sm font-medium tabular-nums">{gnf(p.price)}</p>
                     </Link>

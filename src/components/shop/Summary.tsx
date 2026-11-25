@@ -2,9 +2,10 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
-import { delivery } from "@/lib/config";
 import { gnf } from "@/lib/format";
-import { validatePromo, type CartTotals } from "@/lib/pricing";
+import type { CartTotals } from "@/lib/pricing";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { useShopData } from "./ShopData";
 import type { UniversKey } from "@/lib/types";
 import { useCart } from "@/store/cart";
 
@@ -28,18 +29,19 @@ export function AnimatedAmount({ value, className }: { value: number; className?
 }
 
 export function PromoField({ totals }: { totals: CartTotals }) {
-  const { promoCode, setPromo } = useCart();
+  const { promo, setPromo } = useCart();
   const [code, setCode] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const byU: Record<UniversKey, number> = { studio: 0, bijoux: 0, maison: 0 };
   totals.lines.forEach((l) => (byU[l.product.univers] += l.lineTotal));
 
-  if (promoCode)
+  if (promo)
     return (
       <div className="flex items-center justify-between rounded-2xl bg-ok/[0.08] px-4 py-3 text-sm">
         <span>
-          Code <b className="font-semibold">{promoCode}</b> appliqué
+          Code <b className="font-semibold">{promo.code}</b> appliqué
         </span>
         <button onClick={() => setPromo(null)} className="font-medium text-brun hover:underline">Retirer</button>
       </div>
@@ -47,19 +49,23 @@ export function PromoField({ totals }: { totals: CartTotals }) {
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        const r = validatePromo(code, byU);
-        if (r.ok) {
-          setPromo(r.promo.code);
+        if (!code.trim()) return;
+        setBusy(true);
+        const { data, error } = await supabaseBrowser().rpc("check_promo", { p_code: code, p_amounts: byU });
+        setBusy(false);
+        if (error || !data) return setMsg("Vérification impossible, réessayez.");
+        if (data.ok) {
+          setPromo({ code: data.code, kind: data.kind, value: data.value, univers: data.univers });
           setMsg(null);
-        } else setMsg(r.message);
+        } else setMsg(data.message);
       }}
     >
       <div className="flex gap-2">
         <label htmlFor="promo" className="sr-only">Code promo</label>
         <input id="promo" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Code promo" className="field flex-1 uppercase placeholder:normal-case" />
-        <button type="submit" className="press h-12 rounded-[14px] bg-sable px-5 text-sm font-semibold text-brun hover:bg-beige-clair">Appliquer</button>
+        <button type="submit" disabled={busy} className="press h-12 rounded-[14px] bg-sable px-5 text-sm font-semibold text-brun hover:bg-beige-clair">Appliquer</button>
       </div>
       {msg && <p className="mt-2 text-xs text-danger">{msg}</p>}
     </form>
@@ -67,11 +73,12 @@ export function PromoField({ totals }: { totals: CartTotals }) {
 }
 
 export function TotalsBlock({ totals, showSplit = true }: { totals: CartTotals; showSplit?: boolean }) {
+  const { settings } = useShopData();
   return (
     <div className="text-[15px]">
       <Row label="Sous-total" value={totals.subtotal} />
       {totals.discount > 0 && <Row label="Réduction" value={-totals.discount} accent />}
-      <Row label={`Livraison${delivery.provisional ? " (tarif provisoire)" : ""}`} value={totals.deliveryFee} />
+      <Row label={`Livraison${settings.deliveryProvisional ? " (tarif provisoire)" : ""}`} value={totals.deliveryFee} />
       <div className="mt-2 flex justify-between border-t border-brun/10 pb-3 pt-3 text-[17px] font-semibold">
         <span>Total</span>
         <AnimatedAmount value={totals.total} />

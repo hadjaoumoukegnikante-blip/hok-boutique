@@ -2,13 +2,13 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { CartLine, Order, PaymentMode, VariantKind } from "@/lib/types";
+import type { AppliedPromo, CartLine, PaymentMode, VariantKind } from "@/lib/types";
 
 interface CartState {
   lines: CartLine[];
   commune: string;
   mode: PaymentMode;
-  promoCode: string | null;
+  promo: AppliedPromo | null;
   splitDelivery: boolean;
   add: (l: Omit<CartLine, "key">) => void;
   setQty: (key: string, qty: number) => void;
@@ -16,7 +16,7 @@ interface CartState {
   clear: () => void;
   setCommune: (c: string) => void;
   setMode: (m: PaymentMode) => void;
-  setPromo: (c: string | null) => void;
+  setPromo: (p: AppliedPromo | null) => void;
   setSplit: (v: boolean) => void;
 }
 
@@ -34,7 +34,7 @@ export const useCart = create<CartState>()(
       lines: [],
       commune: "",
       mode: "orange_money",
-      promoCode: null,
+      promo: null,
       splitDelivery: false,
       add: (l) =>
         set((s) => {
@@ -52,53 +52,37 @@ export const useCart = create<CartState>()(
       setQty: (key, qty) =>
         set((s) => ({ lines: s.lines.map((x) => (x.key === key ? { ...x, qty: Math.max(1, qty) } : x)) })),
       remove: (key) => set((s) => ({ lines: s.lines.filter((x) => x.key !== key) })),
-      clear: () => set({ lines: [], promoCode: null, splitDelivery: false }),
+      clear: () => set({ lines: [], promo: null, splitDelivery: false }),
       setCommune: (commune) => set({ commune }),
       setMode: (mode) => set({ mode }),
-      setPromo: (promoCode) => set({ promoCode }),
+      setPromo: (promo) => set({ promo }),
       setSplit: (splitDelivery) => set({ splitDelivery }),
     }),
-    { name: "hok-cart", storage: createJSONStorage(() => localStorage) },
+    { name: "hok-cart-v2", storage: createJSONStorage(() => localStorage) },
   ),
 );
 
-/** Commandes créées depuis ce navigateur (en attendant le backend). */
+/** Commandes passées depuis cet appareil : référence + téléphone, pour le suivi sans compte. */
+export interface LocalOrderRef {
+  ref: string;
+  phone: string;
+  createdAt: string;
+}
+
 interface OrdersState {
-  orders: Order[];
-  addOrder: (o: Order) => void;
-  attachProof: (ref: string, payerNumber: string) => void;
+  orders: LocalOrderRef[];
+  remember: (o: LocalOrderRef) => void;
+  phoneFor: (ref: string) => string | undefined;
 }
 
 export const useLocalOrders = create<OrdersState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       orders: [],
-      addOrder: (o) => set((s) => ({ orders: [o, ...s.orders] })),
-      attachProof: (ref, payerNumber) =>
-        set((s) => ({
-          orders: s.orders.map((o) =>
-            o.ref === ref
-              ? {
-                  ...o,
-                  status: "paiement_a_verifier",
-                  paymentStatus: "preuve_recue",
-                  payments: [
-                    ...o.payments,
-                    {
-                      id: `PAY-${Date.now()}`,
-                      date: new Date().toISOString(),
-                      amount: o.depositDue,
-                      mode: "orange_money",
-                      payerNumber,
-                      status: "preuve_recue",
-                    },
-                  ],
-                }
-              : o,
-          ),
-        })),
+      remember: (o) => set((s) => ({ orders: [o, ...s.orders.filter((x) => x.ref !== o.ref)].slice(0, 30) })),
+      phoneFor: (ref) => get().orders.find((o) => o.ref === ref.toUpperCase())?.phone,
     }),
-    { name: "hok-orders", storage: createJSONStorage(() => localStorage) },
+    { name: "hok-orders-v2", storage: createJSONStorage(() => localStorage) },
   ),
 );
 

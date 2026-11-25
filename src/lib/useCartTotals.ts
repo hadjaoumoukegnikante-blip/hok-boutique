@@ -1,12 +1,11 @@
 "use client";
 
-import { allProducts } from "./api";
-import { demoPromos } from "./data/orders";
+import { useShopData } from "@/components/shop/ShopData";
 import { computeCart } from "./pricing";
 import { useCart } from "@/store/cart";
 
 export function useCartTotals() {
-  const { lines, commune, mode, promoCode, splitDelivery } = useCart();
-  const promo = promoCode ? demoPromos.find((p) => p.code === promoCode) ?? null : null;
-  return computeCart(lines, allProducts(), { commune, mode, promo, splitDelivery });
+  const { products, zones, rules, settings } = useShopData();
+  const { lines, commune, mode, promo, splitDelivery } = useCart();
+  return computeCart(lines, products, { commune, mode, promo, splitDelivery, zones, rules, extraShipmentFee: settings.extraShipmentFee });
 }

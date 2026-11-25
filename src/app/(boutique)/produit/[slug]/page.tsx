@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { ProductCard } from "@/components/shop/ProductCard";
 import { ProductDetail } from "@/components/shop/ProductDetail";
 import { Container, Reveal } from "@/components/ui";
-import { allProducts, getProduct, getProducts } from "@/lib/api";
+import { getProduct, getProducts, getShopData } from "@/lib/api";
 
-export function generateStaticParams() {
-  return allProducts().map((p) => ({ slug: p.slug }));
+export const revalidate = 30;
+
+export async function generateStaticParams() {
+  return (await getShopData()).products.map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {

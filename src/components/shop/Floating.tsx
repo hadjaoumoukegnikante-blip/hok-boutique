@@ -5,10 +5,11 @@ import { Check, MessageCircle } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { cn } from "@/lib/format";
-import { whatsappLink } from "@/lib/whatsapp";
+import { useWhatsapp } from "./ShopData";
 import { useUi } from "@/store/cart";
 
 export function WhatsAppFab() {
+  const whatsappLink = useWhatsapp();
   const pathname = usePathname();
   // Sur mobile, la fiche produit et la commande ont déjà leur propre accès WhatsApp
   const hideOnMobile = pathname.startsWith("/produit/") || pathname.startsWith("/commande");

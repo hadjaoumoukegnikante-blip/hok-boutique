@@ -99,6 +99,41 @@ export interface Product {
   deliveryDays?: number; // délai de livraison
   isNew?: boolean;
   createdAt: string;
+  available?: number; // quantité vendable calculée par la base (stock libre ou tissu libre)
+  active?: boolean;
+  subcategoryId?: string | null;
+  isDemo?: boolean;
+}
+
+/** Paramètres de la boutique, lus dans la base (modifiables dans l'admin). */
+export interface ShopSettings {
+  phone: string | null;
+  email: string | null;
+  whatsapp: string | null;
+  domain: string | null;
+  workshop: string | null;
+  omMerchantCode: string | null;
+  omBeneficiary: string | null;
+  rccm: string | null;
+  nif: string | null;
+  reservationHours: number | null;
+  extraShipmentFee: number;
+  deliveryProvisional: boolean;
+}
+
+export interface PaymentRule {
+  univers: UniversKey;
+  depositRate: number;
+  allowCashOnDelivery: boolean;
+  requiresMakingAcceptance: boolean;
+}
+
+export interface ShopData {
+  products: Product[];
+  univers: Univers[];
+  settings: ShopSettings;
+  zones: DeliveryZone[];
+  rules: Record<UniversKey, PaymentRule>;
 }
 
 export interface CartLine {
@@ -114,6 +149,13 @@ export interface CartLine {
 export interface DeliveryZone {
   commune: string;
   fee: number; // GNF
+}
+
+export interface AppliedPromo {
+  code: string;
+  kind: "pourcentage" | "montant";
+  value: number;
+  univers?: UniversKey[] | null;
 }
 
 export interface Promo {
@@ -185,4 +227,5 @@ export interface Order {
   deliveryDays?: number;
   splitDelivery: boolean;
   invoiceNumber: string;
+  expiresAt?: string | null;
 }

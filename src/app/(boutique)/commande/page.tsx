@@ -7,13 +7,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PromoField, TotalsBlock } from "@/components/shop/Summary";
 import { Button, ButtonLink, Card, ChipGroup, Container, Field, ProductVisual, Segmented, useMounted } from "@/components/ui";
-import { delivery } from "@/lib/config";
+import { useShopData } from "@/components/shop/ShopData";
+import { supabaseBrowser } from "@/lib/supabase/client";
 import { cn, gnf } from "@/lib/format";
-import { makeOrderRef, measurementsLabel, variantLabel } from "@/lib/pricing";
-import type { Customer, Order } from "@/lib/types";
+import { measurementsLabel, variantLabel } from "@/lib/pricing";
+import type { Customer } from "@/lib/types";
 import { useCartTotals } from "@/lib/useCartTotals";
 import { useCart, useLocalOrders } from "@/store/cart";
-import { demoOrders } from "@/lib/data/orders";
 
 const steps = ["Coordonnées", "Livraison et paiement", "Récapitulatif"];
 
@@ -22,7 +22,9 @@ export default function CheckoutPage() {
   const router = useRouter();
   const totals = useCartTotals();
   const cart = useCart();
-  const { orders, addOrder } = useLocalOrders();
+  const remember = useLocalOrders((s) => s.remember);
+  const { zones, settings } = useShopData();
+  const [placing, setPlacing] = useState(false);
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState(1);
   const [accepted, setAccepted] = useState(false);
@@ -78,48 +80,44 @@ export default function CheckoutPage() {
     go(2);
   };
 
-  const placeOrder = () => {
+  const placeOrder = async () => {
     if (!confirmed) return setErrors({ confirm: "Confirmez votre commande pour continuer." });
-    const now = new Date();
-    const todayPrefix = makeOrderRef(now, 0).slice(0, 13);
-    // Séquence provisoire côté navigateur : le backend attribuera la séquence définitive et unique
-    const seq = [...orders, ...demoOrders].filter((o) => o.ref.startsWith(todayPrefix)).reduce((m, o) => Math.max(m, Number(o.ref.slice(-4))), 0) + 1;
-    const ref = makeOrderRef(now, seq);
-    const order: Order = {
-      ref,
-      createdAt: now.toISOString(),
-      customer: c,
-      lines: totals.lines.map((l) => ({
-        productId: l.product.id,
-        ref: l.product.ref,
-        name: l.product.name,
-        univers: l.product.univers,
-        variantLabel: variantLabel(l.product, l.line),
-        qty: l.line.qty,
-        unitPrice: l.product.price,
-        madeToOrder: l.madeToOrder,
-        measurements: l.line.measurements,
-        measurementsByWhatsapp: l.line.measurementsByWhatsapp,
-      })),
-      subtotal: totals.subtotal,
-      discount: totals.discount,
-      promoCode: cart.promoCode ?? undefined,
-      deliveryFee: totals.deliveryFee,
-      total: totals.total,
-      depositDue: totals.dueNow,
-      paid: 0,
-      paymentMode: totals.cashOnDeliveryAllowed ? cart.mode : "orange_money",
-      paymentStatus: "en_attente",
-      status: totals.dueNow > 0 ? "en_attente_paiement" : "confirmee",
-      payments: [],
-      makingDays: totals.makingDays || undefined,
-      deliveryDays: totals.deliveryDays || undefined,
-      splitDelivery: cart.splitDelivery,
-      invoiceNumber: `FAC-${now.getFullYear()}-${String(seq).padStart(4, "0")}`,
-    };
-    addOrder(order);
+    setPlacing(true);
+    setErrors({});
+    // La base recalcule tout (prix, acompte, livraison, stock) et attribue la référence
+    const { data, error } = await supabaseBrowser().rpc("place_order", {
+      p: {
+        customer: {
+          first_name: c.firstName,
+          last_name: c.lastName,
+          phone: c.phone,
+          email: c.email,
+          commune: c.commune,
+          quartier: c.quartier,
+          address: c.address,
+          marketing_consent: c.marketingConsent,
+        },
+        lines: totals.lines.map((l) => ({
+          product_id: l.product.id,
+          qty: l.line.qty,
+          selection: l.line.selection,
+          measurements: l.line.measurements ?? null,
+          measurements_by_whatsapp: l.line.measurementsByWhatsapp ?? false,
+        })),
+        payment_mode: totals.cashOnDeliveryAllowed ? cart.mode : "orange_money",
+        promo_code: cart.promo?.code ?? null,
+        split_delivery: cart.splitDelivery,
+        accepted_making_terms: accepted,
+      },
+    });
+    if (error || !data?.ref) {
+      setPlacing(false);
+      setErrors({ confirm: error?.message ?? "La commande n'a pas pu être enregistrée. Réessayez." });
+      return;
+    }
+    remember({ ref: data.ref, phone: c.phone, createdAt: new Date().toISOString() });
     cart.clear();
-    router.push(`/commande/confirmation/${ref}`);
+    router.push(`/commande/confirmation/${data.ref}`);
   };
 
   const set = <K extends keyof Customer>(k: K, v: Customer[K]) => setC((x) => ({ ...x, [k]: v }));
@@ -176,7 +174,7 @@ export default function CheckoutPage() {
                   </div>
                   <div>
                     <p className="mb-2 text-[13px] font-medium text-soft">Commune (Conakry)</p>
-                    <ChipGroup label="Commune" value={c.commune || undefined} onChange={(v) => set("commune", v)} options={delivery.zones.map((z) => ({ value: z.commune, label: z.commune }))} />
+                    <ChipGroup label="Commune" value={c.commune || undefined} onChange={(v) => set("commune", v)} options={zones.map((z) => ({ value: z.commune, label: z.commune }))} />
                     {errors.commune && <p className="mt-1.5 text-xs text-danger">{errors.commune}</p>}
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -203,8 +201,8 @@ export default function CheckoutPage() {
                   <Card>
                     <h2 className="text-lg font-semibold">Livraison</h2>
                     <p className="mt-1 text-sm text-muted">
-                      {c.commune}, {c.quartier} · {gnf(totals.deliveryFee - (cart.splitDelivery ? delivery.extraShipmentFee : 0))}
-                      {delivery.provisional && " (tarif provisoire)"}
+                      {c.commune}, {c.quartier} · {gnf(totals.baseDeliveryFee)}
+                      {settings.deliveryProvisional && " (tarif provisoire)"}
                     </p>
                     <div className="mt-4">
                       <Segmented
@@ -218,7 +216,7 @@ export default function CheckoutPage() {
                       />
                       <p className="mt-2 text-[13px] text-muted">
                         {cart.splitDelivery
-                          ? `Les articles en stock partent sans attendre la confection. Frais supplémentaires : ${gnf(delivery.extraShipmentFee)}.`
+                          ? `Les articles en stock partent sans attendre la confection. Frais supplémentaires : ${gnf(settings.extraShipmentFee)}.`
                           : "Par défaut, les articles sont livrés ensemble lorsque c'est possible."}
                       </p>
                     </div>
@@ -323,8 +321,8 @@ export default function CheckoutPage() {
                   {errors.confirm && <p className="text-xs text-danger">{errors.confirm}</p>}
                   <div className="flex justify-between gap-3">
                     <Button variant="ghost" size="lg" onClick={() => go(1)}>Retour</Button>
-                    <Button size="lg" onClick={placeOrder}>
-                      <Check className="size-5" strokeWidth={2} /> Confirmer la commande
+                    <Button size="lg" onClick={placeOrder} disabled={placing}>
+                      <Check className="size-5" strokeWidth={2} /> {placing ? "Enregistrement…" : "Confirmer la commande"}
                     </Button>
                   </div>
                 </div>

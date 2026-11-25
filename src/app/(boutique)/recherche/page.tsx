@@ -5,14 +5,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { ProductCard } from "@/components/shop/ProductCard";
 import { Container } from "@/components/ui";
-import { searchProducts } from "@/lib/api";
+import { useSearch } from "@/components/shop/ShopData";
 
 function Results() {
   const params = useSearchParams();
   const router = useRouter();
   const initial = params.get("q") ?? "";
   const [q, setQ] = useState(initial);
-  const results = searchProducts(q);
+  const search = useSearch();
+  const results = search(q);
 
   return (
     <Container className="pt-12 md:pt-16">

@@ -6,6 +6,7 @@ Front complet : boutique client + administration. Le backend sera branché ensui
 ## Démarrer
 
 ```bash
+cp .env.example .env.local   # clé secrète à ajouter pour gérer l'équipe (voir supabase/README.md)
 npm install
 npm run dev        # http://localhost:3000
 npm run build      # build de production
@@ -70,6 +71,10 @@ src/
 - Facture : sous-total, réduction, livraison, total, déjà payé, solde restant dû, statut, délais.
 - Contrôle du stock dans le panier (quantités au-delà du disponible signalées).
 - CA encaissé calculé uniquement sur les paiements vérifiés.
+
+## Base de données Supabase
+
+Scripts SQL, mode d'emploi et tests dans [`supabase/`](supabase/README.md) : schéma, fonctions métier côté serveur, sécurité par rôle, données de départ.
 
 ## À brancher avec le backend
 

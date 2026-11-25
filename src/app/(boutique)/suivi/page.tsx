@@ -6,19 +6,21 @@ import { Suspense, useState } from "react";
 import { OrderView } from "@/components/shop/OrderView";
 import { Button, Container, Field } from "@/components/ui";
 import type { Order } from "@/lib/types";
-import { useFindOrder } from "@/lib/useOrder";
+import { trackOrder } from "@/lib/useOrder";
 
 function Tracking() {
   const params = useSearchParams();
-  const find = useFindOrder();
   const [ref, setRef] = useState(params.get("ref") ?? "");
   const [phone, setPhone] = useState("");
   const [order, setOrder] = useState<Order | null>(null);
   const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const o = find(ref, phone);
+    setBusy(true);
+    const o = await trackOrder(ref, phone);
+    setBusy(false);
     if (!o) {
       setOrder(null);
       setErr("Aucune commande ne correspond à cette référence et ce numéro.");
@@ -40,10 +42,9 @@ function Tracking() {
         <Field label="Téléphone" htmlFor="phone">
           <input id="phone" className="field" inputMode="tel" placeholder="6XX XX XX XX" value={phone} onChange={(e) => setPhone(e.target.value)} required />
         </Field>
-        <Button type="submit" size="md" className="h-12">Suivre</Button>
+        <Button type="submit" size="md" className="h-12" disabled={busy}>{busy ? "…" : "Suivre"}</Button>
       </form>
       {err && <p className="mt-3 text-sm text-danger">{err}</p>}
-      <p className="mt-3 text-xs text-muted">Démo : HOK-20261119-0001 avec 620000001.</p>
 
       <AnimatePresence mode="wait">
         {order && (

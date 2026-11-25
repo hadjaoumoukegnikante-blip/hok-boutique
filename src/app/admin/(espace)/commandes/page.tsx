@@ -1,14 +1,10 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { PageHeader, SearchInput, Table, Td } from "@/components/admin/kit";
+import { PageHeader, Table, Td } from "@/components/admin/kit";
 import { Badge } from "@/components/ui";
-import { dateFr, gnf, orderStatusMeta, paymentStatusMeta } from "@/lib/format";
+import { listOrders } from "@/lib/admin-data";
+import { cn, dateFr, gnf, orderStatusMeta, paymentStatusMeta } from "@/lib/format";
+import { requireStaff } from "@/lib/supabase/staff";
 import type { OrderStatus } from "@/lib/types";
-import { useAdmin } from "@/store/admin";
-import { useLocalOrders } from "@/store/cart";
-import { cn } from "@/lib/format";
 
 const filters: { key: "toutes" | OrderStatus; label: string }[] = [
   { key: "toutes", label: "Toutes" },
@@ -21,31 +17,32 @@ const filters: { key: "toutes" | OrderStatus; label: string }[] = [
   { key: "annulee", label: "Annulées" },
 ];
 
-export default function OrdersPage() {
-  const { orders, merge } = useAdmin();
-  const local = useLocalOrders((s) => s.orders);
-  useEffect(() => merge(local), [local, merge]);
-  const [f, setF] = useState<(typeof filters)[number]["key"]>("toutes");
-  const [q, setQ] = useState("");
-
+export default async function OrdersPage({ searchParams }: { searchParams: Promise<{ f?: string; q?: string }> }) {
+  await requireStaff();
+  const { f = "toutes", q = "" } = await searchParams;
+  const orders = await listOrders();
   const list = orders.filter(
-    (o) =>
-      (f === "toutes" || o.status === f) &&
-      `${o.ref} ${o.customer.firstName} ${o.customer.lastName} ${o.customer.phone}`.toLowerCase().includes(q.toLowerCase()),
+    (o) => (f === "toutes" || o.status === f) && `${o.ref} ${o.customer.firstName} ${o.customer.lastName} ${o.customer.phone}`.toLowerCase().includes(q.toLowerCase()),
   );
 
   return (
     <>
-      <PageHeader title="Commandes" subtitle="Commandes du site et commandes reçues sur WhatsApp" actions={<SearchInput value={q} onChange={setQ} placeholder="Référence, client, téléphone" />} />
+      <PageHeader
+        title="Commandes"
+        subtitle="Commandes du site et commandes saisies pour WhatsApp"
+        actions={
+          <form className="flex h-11 items-center rounded-full bg-white px-4 shadow-[0_1px_2px_rgb(72_40_10/0.06)]">
+            <input type="hidden" name="f" value={f} />
+            <label htmlFor="q" className="sr-only">Rechercher</label>
+            <input id="q" name="q" defaultValue={q} placeholder="Référence, client, téléphone" className="w-56 bg-transparent text-sm focus:outline-none md:w-64" />
+          </form>
+        }
+      />
       <div className="no-scrollbar mb-4 flex gap-1.5 overflow-x-auto">
         {filters.map((x) => (
-          <button
-            key={x.key}
-            onClick={() => setF(x.key)}
-            className={cn("press h-9 shrink-0 rounded-full px-4 text-sm font-medium", f === x.key ? "bg-brun text-white" : "bg-white text-soft hover:bg-sable")}
-          >
+          <Link key={x.key} href={`/admin/commandes?f=${x.key}${q ? `&q=${encodeURIComponent(q)}` : ""}`} className={cn("press flex h-9 shrink-0 items-center rounded-full px-4 text-sm font-medium", f === x.key ? "bg-brun text-white" : "bg-white text-soft hover:bg-sable")}>
             {x.label}
-          </button>
+          </Link>
         ))}
       </div>
       <Table head={["Référence", "Date", "Client", "Articles", "Total", "Payé", "Paiement", "Statut"]}>
@@ -61,9 +58,7 @@ export default function OrdersPage() {
             <Td><Badge tone={orderStatusMeta[o.status].tone}>{orderStatusMeta[o.status].label}</Badge></Td>
           </tr>
         ))}
-        {list.length === 0 && (
-          <tr><Td colSpan={8} className="py-10 text-center text-muted">Aucune commande.</Td></tr>
-        )}
+        {list.length === 0 && <tr><Td colSpan={8} className="py-10 text-center text-muted">Aucune commande.</Td></tr>}
       </Table>
     </>
   );

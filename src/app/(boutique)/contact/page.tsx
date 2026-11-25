@@ -4,10 +4,12 @@ import { Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import { useState } from "react";
 import { Button, ButtonLink, Card, Container, Field } from "@/components/ui";
 import { shop } from "@/lib/config";
-import { whatsappLink } from "@/lib/whatsapp";
+import { useShopData, useWhatsapp } from "@/components/shop/ShopData";
 
 export default function ContactPage() {
   const [sent, setSent] = useState(false);
+  const { settings } = useShopData();
+  const whatsappLink = useWhatsapp();
   return (
     <Container className="pt-12 md:pt-16">
       <h1 className="title-serif text-[48px] md:text-[64px]">Contact</h1>
@@ -23,8 +25,8 @@ export default function ContactPage() {
             </div>
           </a>
           {[
-            { icon: Phone, t: "Téléphone", d: shop.phone },
-            { icon: Mail, t: "E-mail", d: shop.email },
+            { icon: Phone, t: "Téléphone", d: settings.phone ?? "À venir" },
+            { icon: Mail, t: "E-mail", d: settings.email ?? "À venir" },
             { icon: MapPin, t: "Ville", d: shop.city },
           ].map(({ icon: Icon, t, d }) => (
             <div key={t} className="flex items-center gap-4 rounded-3xl bg-ecru p-5">
