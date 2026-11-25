@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui";
-import { delivery } from "@/lib/config";
+import { getShopData } from "@/lib/api";
 import { gnf } from "@/lib/format";
 
 type Section = { h: string; p: string[]; table?: { head: string[]; rows: string[][] } };
-const pages: Record<string, { title: string; intro: string; sections: Section[] }> = {
+const pages = (fee: string): Record<string, { title: string; intro: string; sections: Section[] }> => ({
   livraison: {
     title: "Livraison",
     intro: "Nous livrons à Conakry. Les frais sont toujours affichés avant la confirmation de votre commande.",
     sections: [
-      { h: "Zone et tarifs", p: [`Les tarifs par commune sont en cours de définition avec notre livreur. Tarif affiché pour le moment : ${gnf(delivery.baseFee)}${delivery.provisional ? " (provisoire)" : ""}.`] },
+      { h: "Zone et tarifs", p: [`Les tarifs par commune sont en cours de définition avec notre livreur. Tarif affiché pour le moment : ${fee}.`] },
       { h: "Livraison groupée ou séparée", p: ["Par défaut, les articles d'une même commande sont livrés ensemble lorsque c'est possible.", "Si vous souhaitez recevoir vos articles en stock sans attendre une confection, des frais supplémentaires vous sont indiqués avant votre accord."] },
       { h: "Délais", p: ["Le délai de livraison est affiché sur chaque fiche produit. Pour un vêtement, il s'ajoute au délai de confection, affiché séparément."] },
     ],
@@ -73,19 +73,21 @@ const pages: Record<string, { title: string; intro: string; sections: Section[] 
       },
     ],
   },
-};
+});
 
 export function generateStaticParams() {
-  return Object.keys(pages).map((page) => ({ page }));
+  return Object.keys(pages("")).map((page) => ({ page }));
 }
 export const dynamicParams = false;
 
 export async function generateMetadata({ params }: { params: Promise<{ page: string }> }): Promise<Metadata> {
-  return { title: pages[(await params).page]?.title };
+  return { title: pages("")[(await params).page]?.title };
 }
 
 export default async function InfoPage({ params }: { params: Promise<{ page: string }> }) {
-  const data = pages[(await params).page];
+  const { zones, settings } = await getShopData();
+  const fee = zones.length ? `${gnf(Math.min(...zones.map((z) => z.fee)))}${settings.deliveryProvisional ? " (provisoire)" : ""}` : "à définir";
+  const data = pages(fee)[(await params).page];
   if (!data) notFound();
   return (
     <Container className="max-w-3xl pt-12 md:pt-16">

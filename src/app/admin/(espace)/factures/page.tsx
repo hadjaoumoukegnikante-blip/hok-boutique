@@ -1,20 +1,16 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect } from "react";
 import { PageHeader, Table, Td } from "@/components/admin/kit";
 import { Badge } from "@/components/ui";
+import { listOrders } from "@/lib/admin-data";
 import { dateFr, gnf, paymentStatusMeta } from "@/lib/format";
-import { useAdmin } from "@/store/admin";
-import { useLocalOrders } from "@/store/cart";
+import { requireStaff } from "@/lib/supabase/staff";
 
-export default function InvoicesPage() {
-  const { orders, merge } = useAdmin();
-  const local = useLocalOrders((s) => s.orders);
-  useEffect(() => merge(local), [local, merge]);
+export default async function InvoicesPage() {
+  await requireStaff(["admin", "superviseur"]);
+  const orders = await listOrders();
   return (
     <>
-      <PageHeader title="Factures" subtitle="Générées pour chaque commande, mises à jour après vérification des paiements" />
+      <PageHeader title="Factures" subtitle="Une par commande, mise à jour après chaque paiement vérifié" />
       <Table head={["N° facture", "Commande", "Date", "Client", "Total", "Payé", "Solde", "Statut", ""]}>
         {orders.map((o) => (
           <tr key={o.ref} className="hover:bg-ecru/60">
@@ -29,6 +25,7 @@ export default function InvoicesPage() {
             <Td><a href={`/facture/${o.ref}`} target="_blank" rel="noopener noreferrer" className="text-brun hover:underline">Ouvrir</a></Td>
           </tr>
         ))}
+        {orders.length === 0 && <tr><Td colSpan={9} className="py-10 text-center text-muted">Aucune facture.</Td></tr>}
       </Table>
     </>
   );

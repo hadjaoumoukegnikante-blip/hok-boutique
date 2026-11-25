@@ -5,7 +5,7 @@ import { Check, Download, MessageCircle } from "lucide-react";
 import { Badge, ButtonLink, Card } from "@/components/ui";
 import { dateFr, gnf, orderStatusMeta, paymentStatusMeta } from "@/lib/format";
 import type { Order, OrderStatus } from "@/lib/types";
-import { whatsappLink } from "@/lib/whatsapp";
+import { useWhatsapp } from "./ShopData";
 
 const flow: { key: OrderStatus[]; label: string }[] = [
   { key: ["en_attente_paiement", "paiement_a_verifier"], label: "Commande reçue" },
@@ -20,6 +20,7 @@ export function stepIndex(status: OrderStatus) {
 }
 
 export function OrderView({ order }: { order: Order }) {
+  const whatsappLink = useWhatsapp();
   const cur = stepIndex(order.status);
   const balance = order.total - order.paid;
   const pct = order.total ? Math.round((order.paid / order.total) * 100) : 0;

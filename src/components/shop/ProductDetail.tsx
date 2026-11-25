@@ -5,22 +5,22 @@ import { ChevronDown, Clock, MessageCircle, Scissors, Truck } from "lucide-react
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Badge, Button, ButtonLink, ChipGroup, ProductVisual, QtyStepper } from "@/components/ui";
-import { getUniversSync } from "@/lib/api";
 import { availableQty } from "@/lib/availability";
+import { useShopData, useUniversOf, useWhatsapp } from "./ShopData";
 import { emptyMeasurements, MeasurementsForm, measurementsValid, type MeasureMode } from "./MeasurementsForm";
-import { paymentRules } from "@/lib/config";
 import { cn, gnf, productStatusMeta } from "@/lib/format";
 import type { Measurements, Product, VariantKind } from "@/lib/types";
-import { whatsappLink } from "@/lib/whatsapp";
 import { useCart, useUi } from "@/store/cart";
 
 export function ProductDetail({ product }: { product: Product }) {
-  const u = getUniversSync(product.univers);
+  const u = useUniversOf()(product.univers);
+  const { rules } = useShopData();
+  const whatsappLink = useWhatsapp();
   const meta = productStatusMeta[product.status];
   const made = product.status === "sur_commande";
   const available = availableQty(product);
   const unavailable = available <= 0;
-  const deposit = Math.round(product.price * paymentRules[product.univers].depositRate);
+  const deposit = Math.round(product.price * (rules[product.univers]?.depositRate ?? 0));
 
   const [selection, setSelection] = useState<Partial<Record<VariantKind, string>>>({});
   const [fabric, setFabric] = useState(product.fabrics?.[0]);
@@ -37,7 +37,7 @@ export function ProductDetail({ product }: { product: Product }) {
 
   const missing = product.variants.filter((g) => !selection[g.kind]);
   const gallery = product.images.length ? product.images : [undefined, undefined, undefined];
-  const maxQty = product.status === "en_stock" ? product.stock : undefined;
+  const maxQty = product.status === "en_stock" ? available : undefined;
   const measuresMissing = made && mode === "site" && !measurementsValid(measures);
 
   const onAdd = () => {
@@ -132,8 +132,8 @@ export function ProductDetail({ product }: { product: Product }) {
           </p>
         )}
         {product.status === "en_stock" && (
-          <p className={cn("mt-2 text-sm", product.stock <= 3 ? "text-bordeaux" : "text-ok")}>
-            {product.stock <= 0 ? "Épuisé" : product.stock <= 3 ? `Plus que ${product.stock} en stock` : "En stock, expédié rapidement"}
+          <p className={cn("mt-2 text-sm", available <= 3 ? "text-bordeaux" : "text-ok")}>
+            {available <= 0 ? "Épuisé" : available <= 3 ? `Plus que ${available} en stock` : "En stock, expédié rapidement"}
           </p>
         )}
 

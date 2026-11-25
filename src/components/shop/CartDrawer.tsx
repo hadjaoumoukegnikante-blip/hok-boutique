@@ -4,16 +4,14 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ShoppingBag, X } from "lucide-react";
 import { useEffect } from "react";
 import { ButtonLink, IconButton } from "@/components/ui";
-import { allProducts } from "@/lib/api";
 import { gnf } from "@/lib/format";
-import { computeCart } from "@/lib/pricing";
-import { useCart, useUi } from "@/store/cart";
+import { useCartTotals } from "@/lib/useCartTotals";
+import { useUi } from "@/store/cart";
 import { CartLineItem } from "./CartLineItem";
 
 export function CartDrawer() {
   const { cartOpen, closeCart } = useUi();
-  const { lines, commune, mode } = useCart();
-  const totals = computeCart(lines, allProducts(), { commune, mode });
+  const totals = useCartTotals();
 
   useEffect(() => {
     if (!cartOpen) return;

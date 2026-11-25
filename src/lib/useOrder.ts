@@ -1,21 +1,36 @@
 "use client";
 
-import { demoOrders } from "./data/orders";
+import { useEffect, useState } from "react";
+import { rowToOrder } from "./db";
+import { supabaseBrowser } from "./supabase/client";
+import type { Order } from "./types";
 import { useLocalOrders } from "@/store/cart";
 
-/** Cherche une commande parmi celles créées dans ce navigateur, puis dans la démo. */
-export function useOrder(ref: string) {
-  const local = useLocalOrders((s) => s.orders);
-  const r = decodeURIComponent(ref).toUpperCase();
-  return local.find((o) => o.ref === r) ?? demoOrders.find((o) => o.ref === r);
+/** Lit une commande par référence + téléphone (fonction track_order, sans compte). */
+export async function trackOrder(ref: string, phone: string): Promise<Order | null> {
+  const { data, error } = await supabaseBrowser().rpc("track_order", { p_ref: ref.trim().toUpperCase(), p_phone: phone });
+  if (error || !data) return null;
+  return rowToOrder(data);
 }
 
-export function useFindOrder() {
-  const local = useLocalOrders((s) => s.orders);
-  return (ref: string, phone: string) => {
-    const r = ref.trim().toUpperCase();
-    const o = local.find((x) => x.ref === r) ?? demoOrders.find((x) => x.ref === r);
-    if (!o) return undefined;
-    return o.customer.phone.replace(/\D/g, "").endsWith(phone.replace(/\D/g, "").slice(-9)) ? o : undefined;
-  };
+/** Commande passée depuis cet appareil (le téléphone est mémorisé localement). */
+export function useOrder(ref: string) {
+  const r = decodeURIComponent(ref).toUpperCase();
+  const phone = useLocalOrders((s) => s.orders.find((o) => o.ref === r)?.phone);
+  const [state, setState] = useState<{ loading: boolean; order: Order | null }>({ loading: true, order: null });
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    if (!phone) {
+      setState({ loading: false, order: null });
+      return;
+    }
+    trackOrder(r, phone).then((order) => alive && setState({ loading: false, order }));
+    return () => {
+      alive = false;
+    };
+  }, [r, phone, tick]);
+
+  return { ...state, phone, reload: () => setTick((t) => t + 1) };
 }

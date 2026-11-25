@@ -3,7 +3,7 @@
 import { Trash } from "lucide-react";
 import Link from "next/link";
 import { Badge, ProductVisual, QtyStepper } from "@/components/ui";
-import { getUniversSync } from "@/lib/api";
+import { useUniversOf } from "./ShopData";
 import { gnf } from "@/lib/format";
 import { measurementsLabel, variantLabel, type PricedLine } from "@/lib/pricing";
 import { useCart } from "@/store/cart";
@@ -11,9 +11,9 @@ import { useCart } from "@/store/cart";
 export function CartLineItem({ item, compact = false }: { item: PricedLine; compact?: boolean }) {
   const { setQty, remove } = useCart();
   const { product, line } = item;
-  const u = getUniversSync(product.univers);
+  const u = useUniversOf()(product.univers);
   const label = variantLabel(product, line);
-  const max = product.status === "en_stock" ? product.stock : undefined;
+  const max = product.status === "en_stock" ? product.available ?? product.stock : undefined;
 
   return (
     <div className="flex gap-4">
@@ -39,7 +39,7 @@ export function CartLineItem({ item, compact = false }: { item: PricedLine; comp
           )}
           {item.overStock && (
             <Badge tone="danger" className="px-2.5 py-0.5 text-[11px]">
-              {item.madeToOrder ? "Tissu insuffisant pour cette pièce" : `Seulement ${product.stock} disponible(s)`}
+              {item.madeToOrder ? "Tissu insuffisant pour cette pièce" : `Seulement ${product.available ?? product.stock} disponible(s)`}
             </Badge>
           )}
         </div>

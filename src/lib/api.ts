@@ -1,67 +1,52 @@
+import "server-only";
 /**
- * Couche d'accès aux données.
- * Aujourd'hui : données de démonstration en mémoire.
- * Demain : appels au backend (fetch vers l'API) sans changer les pages.
+ * Lecture des données publiques de la boutique (serveur).
+ * Source : Supabase (vue « catalogue » et tables publiques).
  */
-import { products, univers, universByKey } from "./data/catalogue";
-import { demoOrders } from "./data/orders";
-import type { Order, Product, Univers, UniversKey } from "./types";
+import { cache } from "react";
+import { rowsToRules, rowsToUnivers, rowsToZones, rowToProduct, rowToSettings } from "./db";
+import { supabasePublic } from "./supabase/public";
+import type { Product, ShopData, Univers, UniversKey } from "./types";
+
+export const getShopData = cache(async (): Promise<ShopData> => {
+  const db = supabasePublic();
+  const [p, u, s, st, z, r] = await Promise.all([
+    db.from("catalogue").select("*").order("created_at"),
+    db.from("univers").select("*"),
+    db.from("subcategories").select("*").eq("active", true),
+    db.from("settings").select("*").eq("id", 1).maybeSingle(),
+    db.from("delivery_zones").select("*").eq("active", true),
+    db.from("payment_rules").select("*"),
+  ]);
+  const err = p.error ?? u.error ?? s.error ?? st.error ?? z.error ?? r.error;
+  if (err) throw new Error(`Lecture Supabase impossible : ${err.message}`);
+  return {
+    products: (p.data ?? []).map(rowToProduct),
+    univers: rowsToUnivers(u.data ?? [], s.data ?? []),
+    settings: rowToSettings(st.data),
+    zones: rowsToZones(z.data ?? []),
+    rules: rowsToRules(r.data ?? []),
+  };
+});
 
 export async function getUnivers(): Promise<Univers[]> {
-  return univers;
+  return (await getShopData()).univers;
 }
 
 export async function getUniversBySlug(slug: string): Promise<Univers | undefined> {
-  return univers.find((u) => u.slug === slug);
-}
-
-export function getUniversSync(key: UniversKey): Univers {
-  return universByKey[key];
+  return (await getUnivers()).find((u) => u.slug === slug);
 }
 
 export async function getProducts(filter?: { univers?: UniversKey; subcategory?: string }): Promise<Product[]> {
-  return products.filter(
-    (p) =>
-      (!filter?.univers || p.univers === filter.univers) &&
-      (!filter?.subcategory || p.subcategory === filter.subcategory),
+  return (await getShopData()).products.filter(
+    (p) => (!filter?.univers || p.univers === filter.univers) && (!filter?.subcategory || p.subcategory === filter.subcategory),
   );
 }
 
 export async function getProduct(slug: string): Promise<Product | undefined> {
-  return products.find((p) => p.slug === slug);
+  return (await getShopData()).products.find((p) => p.slug === slug);
 }
 
 export async function getNewProducts(): Promise<Product[]> {
-  return products.filter((p) => p.isNew);
-}
-
-export function searchProducts(q: string): Product[] {
-  const s = q
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
-  if (!s) return [];
-  return products.filter((p) => {
-    const hay = `${p.name} ${p.ref} ${p.description} ${universByKey[p.univers].label}`
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "");
-    return hay.includes(s);
-  });
-}
-
-export async function getOrders(): Promise<Order[]> {
-  return demoOrders;
-}
-
-export async function findOrder(ref: string, phone?: string): Promise<Order | undefined> {
-  const o = demoOrders.find((x) => x.ref.toUpperCase() === ref.trim().toUpperCase());
-  if (!o) return undefined;
-  if (phone !== undefined && o.customer.phone.replace(/\D/g, "") !== phone.replace(/\D/g, "")) return undefined;
-  return o;
-}
-
-export function allProducts(): Product[] {
-  return products;
+  return (await getShopData()).products.filter((p) => p.isNew);
 }

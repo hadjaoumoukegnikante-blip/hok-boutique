@@ -160,6 +160,7 @@ begin
     end if;
 
     v_meters := 0;
+    v_m := null; -- jamais hérité de la ligne précédente
     if prod.status = 'sur_commande' then
       v_qty := 1; -- une pièce sur mesure = une ligne
       if coalesce((l ->> 'measurements_by_whatsapp')::boolean, false) then

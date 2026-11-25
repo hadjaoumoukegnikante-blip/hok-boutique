@@ -4,36 +4,38 @@ import { motion } from "framer-motion";
 import { Check, Copy, Info, MessageCircle, Upload } from "lucide-react";
 import Link from "next/link";
 import { use, useState } from "react";
+import { useShopData, useWhatsapp } from "@/components/shop/ShopData";
 import { Button, ButtonLink, Card, Container, Field, useMounted } from "@/components/ui";
-import { reservationHours, shop } from "@/lib/config";
 import { gnf } from "@/lib/format";
+import { supabaseBrowser } from "@/lib/supabase/client";
 import { useOrder } from "@/lib/useOrder";
-import { whatsappLink } from "@/lib/whatsapp";
-import { useLocalOrders } from "@/store/cart";
 
 export default function ConfirmationPage({ params }: { params: Promise<{ ref: string }> }) {
   const { ref } = use(params);
   const mounted = useMounted();
-  const order = useOrder(ref);
-  const attachProof = useLocalOrders((s) => s.attachProof);
+  const { loading, order, phone, reload } = useOrder(ref);
+  const { settings } = useShopData();
+  const whatsappLink = useWhatsapp();
   const [payer, setPayer] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
   const [copied, setCopied] = useState(false);
   const [err, setErr] = useState("");
 
-  if (!mounted) return <Container className="min-h-[60vh]" />;
-  if (!order)
+  if (!mounted || loading) return <Container className="min-h-[60vh]" />;
+  if (!order || !phone)
     return (
       <Container className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-        <h1 className="title-serif text-[40px]">Commande introuvable</h1>
-        <ButtonLink href="/suivi" className="mt-6">Suivre une commande</ButtonLink>
+        <h1 className="title-serif text-[40px]">Commande introuvable sur cet appareil</h1>
+        <p className="mt-2 text-muted">Retrouvez-la avec votre référence et votre téléphone.</p>
+        <ButtonLink href={`/suivi?ref=${decodeURIComponent(ref)}`} className="mt-6">Suivre ma commande</ButtonLink>
       </Container>
     );
 
-  const needsPayment = order.depositDue > 0 && order.paymentStatus === "en_attente";
+  const proofPending = order.payments.some((p) => p.status === "a_verifier" || p.status === "preuve_recue");
+  const remainingNow = Math.max(order.depositDue - order.paid, 0);
+  const needsPayment = remainingNow > 0 && order.status !== "annulee" && !proofPending;
   const waMeasures = order.lines.filter((l) => l.measurementsByWhatsapp);
-  const proofSent = sent || order.paymentStatus === "preuve_recue" || order.paymentStatus === "a_verifier";
 
   const copy = async () => {
     try {
@@ -43,13 +45,30 @@ export default function ConfirmationPage({ params }: { params: Promise<{ ref: st
     } catch {}
   };
 
-  const submitProof = (e: React.FormEvent) => {
+  const submitProof = async (e: React.FormEvent) => {
     e.preventDefault();
     if (payer.replace(/\D/g, "").length < 9) return setErr("Indiquez le numéro Orange Money utilisé.");
     setErr("");
-    // Backend : envoi de la preuve (fichier) et création du paiement "preuve reçue"
-    attachProof(order.ref, payer);
-    setSent(true);
+    setSending(true);
+    const supabase = supabaseBrowser();
+    let path: string | null = null;
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setSending(false);
+        return setErr("Fichier trop lourd (5 Mo maximum).");
+      }
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+      path = `proofs/${order.ref}-${Date.now()}.${ext}`;
+      const up = await supabase.storage.from("payment-proofs").upload(path, file, { contentType: file.type, upsert: false });
+      if (up.error) {
+        setSending(false);
+        return setErr("La capture n'a pas pu être envoyée. Réessayez ou envoyez-la sur WhatsApp.");
+      }
+    }
+    const { error } = await supabase.rpc("submit_payment_proof", { p_ref: order.ref, p_phone: phone, p_payer_number: payer, p_proof_path: path });
+    setSending(false);
+    if (error) return setErr(error.message);
+    reload();
   };
 
   return (
@@ -86,10 +105,10 @@ export default function ConfirmationPage({ params }: { params: Promise<{ ref: st
         </Card>
       )}
 
-      {needsPayment && !proofSent && (
+      {needsPayment && (
         <Card className="mt-10">
           <p className="eyebrow">Paiement Orange Money</p>
-          <p className="mt-2 text-[28px] font-semibold tabular-nums">{gnf(order.depositDue)}</p>
+          <p className="mt-2 text-[28px] font-semibold tabular-nums">{gnf(remainingNow)}</p>
           <p className="text-sm text-muted">
             {order.lines.some((l) => l.madeToOrder)
               ? order.lines.some((l) => !l.madeToOrder)
@@ -100,8 +119,11 @@ export default function ConfirmationPage({ params }: { params: Promise<{ ref: st
           <ol className="mt-5 space-y-3 text-[15px]">
             {[
               <>Composez le paiement marchand Orange Money.</>,
-              <>Code marchand : <b className="font-semibold">{shop.orangeMoney.merchantCode}</b> · Bénéficiaire : <b className="font-semibold">{shop.orangeMoney.beneficiary}</b></>,
-              <>Montant : <b className="font-semibold">{gnf(order.depositDue)}</b> · Motif : <b className="font-semibold">{order.ref}</b></>,
+              <>
+                Code marchand : <b className="font-semibold">{settings.omMerchantCode ?? "communiqué sur WhatsApp"}</b>
+                {settings.omBeneficiary && <> · Bénéficiaire : <b className="font-semibold">{settings.omBeneficiary}</b></>}
+              </>,
+              <>Montant : <b className="font-semibold">{gnf(remainingNow)}</b> · Motif : <b className="font-semibold">{order.ref}</b></>,
               <>Envoyez la preuve ci-dessous ou sur WhatsApp.</>,
             ].map((t, i) => (
               <li key={i} className="flex gap-3">
@@ -120,10 +142,10 @@ export default function ConfirmationPage({ params }: { params: Promise<{ ref: st
               <label className="press flex cursor-pointer items-center gap-3 rounded-[14px] border border-dashed border-brun/30 bg-white px-4 py-3.5 text-sm hover:border-brun/60">
                 <Upload className="size-5 text-brun" strokeWidth={1.6} />
                 <span className="truncate">{file ? file.name : "Choisir une image"}</span>
-                <input type="file" accept="image/*,.pdf" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+                <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
               </label>
             </div>
-            <Button type="submit" size="lg" className="w-full">Envoyer la preuve</Button>
+            <Button type="submit" size="lg" className="w-full" disabled={sending}>{sending ? "Envoi…" : "Envoyer la preuve"}</Button>
           </form>
           <ButtonLink
             href={whatsappLink({ intro: "Bonjour H.O.K Boutique, voici ma preuve de paiement Orange Money.", orderRef: order.ref })}
@@ -136,19 +158,19 @@ export default function ConfirmationPage({ params }: { params: Promise<{ ref: st
           <p className="mt-4 flex gap-2 text-xs leading-relaxed text-muted">
             <Info className="mt-0.5 size-4 shrink-0" strokeWidth={1.7} />
             La boutique vérifie chaque transaction. Une capture d'écran seule ne confirme pas la réception des fonds : votre commande est confirmée après vérification.
-            {reservationHours ? ` Sans paiement sous ${reservationHours} h, la commande est annulée automatiquement.` : ""}
+            {settings.reservationHours ? ` Sans paiement sous ${settings.reservationHours} h, la commande est annulée automatiquement.` : ""}
           </p>
         </Card>
       )}
 
-      {proofSent && (
+      {proofPending && (
         <Card className="mt-10 text-center">
           <p className="font-semibold">Preuve reçue, vérification en cours</p>
-          <p className="mt-1 text-sm text-muted">Vous serez notifié dès la validation du paiement.</p>
+          <p className="mt-1 text-sm text-muted">Votre commande sera confirmée dès la validation du paiement.</p>
         </Card>
       )}
 
-      {!needsPayment && !proofSent && (
+      {!needsPayment && !proofPending && order.paid === 0 && order.depositDue === 0 && (
         <Card className="mt-10 text-center">
           <p className="font-semibold">Paiement à la livraison</p>
           <p className="mt-1 text-sm text-muted">Montant à prévoir : {gnf(order.total - order.paid)}</p>
