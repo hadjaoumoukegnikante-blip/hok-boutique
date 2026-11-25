@@ -18,6 +18,7 @@ import {
   Settings,
   Store,
   Truck,
+  UserCog,
   Users,
   X,
 } from "lucide-react";
@@ -27,6 +28,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/format";
 import { Toast } from "@/components/shop/Floating";
+import { signOut } from "@/app/admin/actions/auth";
 
 const groups = [
   {
@@ -61,6 +63,7 @@ const groups = [
     items: [
       { href: "/admin/statistiques", label: "Statistiques", icon: ChartBar },
       { href: "/admin/historique", label: "Historique", icon: ScrollText },
+      { href: "/admin/equipe", label: "Équipe", icon: UserCog },
       { href: "/admin/parametres", label: "Paramètres", icon: Settings },
     ],
   },
@@ -99,7 +102,9 @@ function Nav({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-export function AdminShell({ children }: { children: React.ReactNode }) {
+const roleLabel: Record<string, string> = { admin: "Gérante", superviseur: "Superviseure", atelier: "Atelier", livreur: "Livreur" };
+
+export function AdminShell({ children, me }: { children: React.ReactNode; me?: { name: string; role: string } }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   useEffect(() => setOpen(false), [pathname]);
@@ -118,9 +123,17 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <Link href="/" className="flex h-10 items-center gap-3 rounded-xl px-3 text-sm text-soft hover:bg-brun/[0.05]">
             <Store className="size-[18px]" strokeWidth={1.6} /> Voir la boutique
           </Link>
-          <Link href="/admin/connexion" className="flex h-10 items-center gap-3 rounded-xl px-3 text-sm text-soft hover:bg-brun/[0.05]">
-            <LogOut className="size-[18px]" strokeWidth={1.6} /> Déconnexion
-          </Link>
+          {me && (
+            <div className="px-3 py-2">
+              <p className="truncate text-sm font-semibold">{me.name}</p>
+              <p className="text-xs text-muted">{roleLabel[me.role] ?? me.role}</p>
+            </div>
+          )}
+          <form action={signOut}>
+            <button type="submit" className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm text-soft hover:bg-brun/[0.05]">
+              <LogOut className="size-[18px]" strokeWidth={1.6} /> Déconnexion
+            </button>
+          </form>
         </div>
       </aside>
 

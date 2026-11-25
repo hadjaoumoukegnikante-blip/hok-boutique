@@ -7,13 +7,6 @@ import { paymentRules, reservationHours, shop } from "@/lib/config";
 import type { UniversKey } from "@/lib/types";
 import { useUi } from "@/store/cart";
 
-const team = [
-  { name: "Hadja Oumou Kanté", role: "Gérante et fabricante", access: "Accès complet" },
-  { name: "Kadiatou Kanté", role: "Co-gérante", access: "Accès complet" },
-  { name: "Fatoumata Kanté", role: "Superviseure (stocks)", access: "Accès complet" },
-  { name: "Cellou Kanté", role: "Créateur du site", access: "Accès complet" },
-  { name: "Livreur", role: "À définir", access: "Livraisons uniquement" },
-];
 
 const names: Record<UniversKey, string> = { studio: "H.O.K Studio · Vêtements", bijoux: "H.O.K Jewelry · Bijoux", maison: "H.O.K Home" };
 
@@ -81,15 +74,9 @@ export default function SettingsPage() {
           </Field>
         </Panel>
         <Panel title="Accès et rôles">
-          <ul className="space-y-2 text-sm">
-            {team.map((m) => (
-              <li key={m.name} className="flex items-center justify-between gap-3 rounded-2xl bg-ecru px-4 py-3">
-                <span><b className="font-semibold">{m.name}</b><span className="block text-xs text-muted">{m.role}</span></span>
-                <span className="text-right text-xs text-muted">{m.access}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 text-xs text-muted">Atelier : {shop.workshop}. Chaque compte est personnel ; toutes les opérations sensibles sont tracées dans l'historique.</p>
+          <p className="text-sm text-soft">Les comptes et les rôles se gèrent dans la page Équipe.</p>
+          <a href="/admin/equipe" className="mt-3 inline-flex h-10 items-center rounded-full bg-sable px-4 text-sm font-medium text-brun hover:bg-beige-clair">Gérer l'équipe</a>
+          <p className="mt-3 text-xs text-muted">Atelier : {shop.workshop}.</p>
         </Panel>
         <div className="xl:col-span-2">
           <Button type="submit" size="lg">Enregistrer</Button>
