@@ -24,8 +24,13 @@ export function InvoiceView({ refParam, settings }: { refParam: string; settings
     (async () => {
       if (phone) return setOrder(await trackOrder(ref, phone));
       // Membre de l'équipe connecté : lecture directe (RLS)
-      const { data } = await supabaseBrowser().from("orders").select("*, order_lines(*), payments(*)").eq("ref", ref).maybeSingle();
-      setOrder(data ? rowToOrder(data) : null);
+      const db = supabaseBrowser();
+      const { data } = await db.from("orders").select("*, order_lines(*), payments(*)").eq("ref", ref).maybeSingle();
+      if (data) return setOrder(rowToOrder(data));
+      // Client connecté : commande de son compte
+      const { data: mine } = await db.rpc("my_orders");
+      const row = ((mine as Record<string, unknown>[] | null) ?? []).find((x) => x?.ref === ref);
+      setOrder(row ? rowToOrder(row) : null);
     })();
   }, [mounted, ref, phone]);
 

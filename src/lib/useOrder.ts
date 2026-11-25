@@ -20,17 +20,27 @@ export function useOrder(ref: string) {
   const [state, setState] = useState<{ loading: boolean; order: Order | null }>({ loading: true, order: null });
   const [tick, setTick] = useState(0);
 
+  const [accountPhone, setAccountPhone] = useState<string | undefined>();
+
   useEffect(() => {
     let alive = true;
-    if (!phone) {
-      setState({ loading: false, order: null });
-      return;
-    }
-    trackOrder(r, phone).then((order) => alive && setState({ loading: false, order }));
+    (async () => {
+      if (phone) {
+        const order = await trackOrder(r, phone);
+        if (alive) setState({ loading: false, order });
+        return;
+      }
+      // Pas mémorisée sur cet appareil : commande du compte connecté ?
+      const { data } = await supabaseBrowser().rpc("my_orders");
+      const row = ((data as Record<string, unknown>[] | null) ?? []).find((x) => x?.ref === r);
+      if (!alive) return;
+      setAccountPhone(row ? String(row.phone) : undefined);
+      setState({ loading: false, order: row ? rowToOrder(row) : null });
+    })();
     return () => {
       alive = false;
     };
   }, [r, phone, tick]);
 
-  return { ...state, phone, reload: () => setTick((t) => t + 1) };
+  return { ...state, phone: phone ?? accountPhone, reload: () => setTick((t) => t + 1) };
 }
