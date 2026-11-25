@@ -71,6 +71,10 @@ src/
 - Contrôle du stock dans le panier (quantités au-delà du disponible signalées).
 - CA encaissé calculé uniquement sur les paiements vérifiés.
 
+## Base de données Supabase
+
+Scripts SQL, mode d'emploi et tests dans [`supabase/`](supabase/README.md) : schéma, fonctions métier côté serveur, sécurité par rôle, données de départ.
+
 ## À brancher avec le backend
 
 Tout ce qui est marqué « Démonstration » ou passe par `src/lib/api.ts` et `src/store/admin.ts` :
