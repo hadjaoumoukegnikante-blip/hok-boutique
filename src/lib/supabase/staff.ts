@@ -16,10 +16,10 @@ export async function requireStaff(roles?: StaffRole[]): Promise<StaffMember> {
   const supabase = await supabaseServer();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/admin/connexion");
-  // Compte créé avec un mot de passe provisoire : il doit d'abord en choisir un
-  if (auth.user.user_metadata?.must_change_password) redirect("/admin/mot-de-passe");
   const { data: me } = await supabase.from("staff").select("user_id, full_name, role, email, active").eq("user_id", auth.user.id).maybeSingle();
   if (!me || !me.active) redirect("/admin/connexion?erreur=acces");
+  // Compte créé avec un mot de passe provisoire : il doit d'abord en choisir un
+  if (auth.user.user_metadata?.must_change_password) redirect("/admin/mot-de-passe");
   if (roles && !roles.includes(me.role)) redirect("/admin?erreur=role");
   return me as StaffMember;
 }

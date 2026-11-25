@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronLeft, Scissors, Truck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PromoField, TotalsBlock } from "@/components/shop/Summary";
 import { Button, ButtonLink, Card, ChipGroup, Container, Field, ProductVisual, Segmented, useMounted } from "@/components/ui";
 import { useShopData } from "@/components/shop/ShopData";
@@ -13,6 +13,7 @@ import { cn, gnf } from "@/lib/format";
 import { measurementsLabel, variantLabel } from "@/lib/pricing";
 import type { Customer } from "@/lib/types";
 import { useCartTotals } from "@/lib/useCartTotals";
+import { useClient } from "@/lib/useClient";
 import { useCart, useLocalOrders } from "@/store/cart";
 
 const steps = ["Coordonnées", "Livraison et paiement", "Récapitulatif"];
@@ -40,6 +41,23 @@ export default function CheckoutPage() {
     address: "",
     marketingConsent: false,
   });
+  const { session } = useClient();
+  const profile = session.status === "client" ? session.profile : null;
+
+  // Client connecté : coordonnées préremplies depuis son profil (sans écraser une saisie)
+  useEffect(() => {
+    if (!profile) return;
+    setC((x) => ({
+      firstName: x.firstName || profile.first_name,
+      lastName: x.lastName || profile.last_name,
+      phone: x.phone || profile.phone,
+      email: x.email || profile.email || "",
+      commune: profile.commune && zones.some((z) => z.commune === profile.commune) ? profile.commune : x.commune,
+      quartier: x.quartier || profile.quartier || "",
+      address: x.address || profile.address || "",
+      marketingConsent: x.marketingConsent || profile.marketing_consent,
+    }));
+  }, [profile, zones]);
 
   if (!mounted) return <Container className="min-h-[60vh]" />;
   if (totals.lines.length === 0)
@@ -190,7 +208,11 @@ export default function CheckoutPage() {
                     J'accepte de recevoir les nouveautés et offres de H.O.K Boutique (facultatif). Les messages de suivi de commande sont envoyés dans tous les cas.
                   </label>
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                    <Link href="/compte" className="text-sm text-brun hover:underline">J'ai un compte, me connecter</Link>
+                    {session.status === "client" ? (
+                      <span className="text-sm text-muted">Commande rattachée à votre compte</span>
+                    ) : (
+                      <Link href="/compte" className="text-sm text-brun hover:underline">J'ai un compte, me connecter</Link>
+                    )}
                     <Button size="lg" onClick={validate1}>Continuer</Button>
                   </div>
                 </Card>
