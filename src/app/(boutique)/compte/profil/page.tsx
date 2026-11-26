@@ -10,6 +10,7 @@ import { Button, Card, Container, Field, useMounted } from "@/components/ui";
 import { formatPhone } from "@/lib/phone";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useClient } from "@/lib/useClient";
+import { useUi } from "@/store/cart";
 import { changeClientPhone } from "../actions";
 
 export default function ProfilePage() {
@@ -21,6 +22,7 @@ export default function ProfilePage() {
   const [phoneMsg, setPhoneMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const notify = useUi((st) => st.notify);
 
   useEffect(() => {
     if (session.status === "guest") router.replace("/compte");
@@ -60,7 +62,10 @@ export default function ProfilePage() {
                 });
                 setBusy(false);
                 setMsg(error ? { ok: false, text: error.message } : { ok: true, text: "Profil enregistré." });
-                if (!error) reload();
+                if (!error) {
+                  notify("Profil enregistré", "Vos coordonnées seront préremplies à la prochaine commande.");
+                  reload();
+                }
               }}
             >
               <div className="grid gap-4 sm:grid-cols-2">
@@ -95,6 +100,7 @@ export default function ProfilePage() {
                 await supabaseBrowser().auth.refreshSession();
                 form.reset();
                 setPhoneMsg({ ok: true, text: "Numéro modifié. Utilisez-le désormais pour vous connecter." });
+                notify("Numéro modifié", "Utilisez-le désormais pour vous connecter.");
                 reload();
               }}
             >
@@ -106,7 +112,7 @@ export default function ProfilePage() {
 
           <Card className="mt-5">
             <h2 className="mb-4 font-semibold">Mot de passe</h2>
-            <PasswordForm onDone={() => setPwMsg({ ok: true, text: "Mot de passe modifié." })} onError={(t) => setPwMsg(t ? { ok: false, text: t } : null)} />
+            <PasswordForm onDone={() => { setPwMsg({ ok: true, text: "Mot de passe modifié." }); notify("Mot de passe modifié"); }} onError={(t) => setPwMsg(t ? { ok: false, text: t } : null)} />
             {pwMsg && <p role="status" className={`mt-3 text-sm ${pwMsg.ok ? "text-brun" : "text-danger"}`}>{pwMsg.text}</p>}
           </Card>
         </>
