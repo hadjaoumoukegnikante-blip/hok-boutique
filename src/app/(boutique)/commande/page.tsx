@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronLeft, Scissors, Truck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PromoField, TotalsBlock } from "@/components/shop/Summary";
 import { Button, ButtonLink, Card, ChipGroup, Container, Field, ProductVisual, Segmented, useMounted } from "@/components/ui";
 import { useShopData } from "@/components/shop/ShopData";
@@ -44,15 +44,18 @@ export default function CheckoutPage() {
   const { session } = useClient();
   const profile = session.status === "client" ? session.profile : null;
 
-  // Client connecté : coordonnées préremplies depuis son profil (sans écraser une saisie)
+  // Client connecté : coordonnées préremplies une seule fois depuis son profil,
+  // sans écraser une saisie ni la commune déjà choisie dans le panier
+  const prefilled = useRef(false);
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || prefilled.current) return;
+    prefilled.current = true;
     setC((x) => ({
       firstName: x.firstName || profile.first_name,
       lastName: x.lastName || profile.last_name,
       phone: x.phone || profile.phone,
       email: x.email || profile.email || "",
-      commune: profile.commune && zones.some((z) => z.commune === profile.commune) ? profile.commune : x.commune,
+      commune: x.commune || (profile.commune && zones.some((z) => z.commune === profile.commune) ? profile.commune : ""),
       quartier: x.quartier || profile.quartier || "",
       address: x.address || profile.address || "",
       marketingConsent: x.marketingConsent || profile.marketing_consent,
